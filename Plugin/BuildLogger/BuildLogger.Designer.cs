@@ -1,0 +1,113 @@
+﻿namespace MapCreator.Engine.Plugin.BuildLogger
+{
+    partial class buildLogger
+    {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(buildLogger));
+            buildLogger_menuStrip = new MenuStrip();
+            buildLogger_statusStrip = new StatusStrip();
+            buildLogger_textBox_logDisplay = new TextBox();
+            buildLogger_menuStrip_menuStripButton_saveAs = new ToolStripMenuItem();
+            buildLogger_menuStrip_menuStripButton_printLog = new ToolStripMenuItem();
+            buildLogger_menuStrip.SuspendLayout();
+            SuspendLayout();
+            // 
+            // buildLogger_menuStrip
+            // 
+            buildLogger_menuStrip.Font = new Font("Segoe UI", 11F);
+            buildLogger_menuStrip.ImageScalingSize = new Size(24, 24);
+            buildLogger_menuStrip.Items.AddRange(new ToolStripItem[] { buildLogger_menuStrip_menuStripButton_saveAs, buildLogger_menuStrip_menuStripButton_printLog });
+            buildLogger_menuStrip.Location = new Point(0, 0);
+            buildLogger_menuStrip.Name = "buildLogger_menuStrip";
+            buildLogger_menuStrip.Size = new Size(413, 32);
+            buildLogger_menuStrip.TabIndex = 0;
+            buildLogger_menuStrip.Text = "menuStrip1";
+            // 
+            // buildLogger_statusStrip
+            // 
+            buildLogger_statusStrip.Location = new Point(0, 345);
+            buildLogger_statusStrip.Name = "buildLogger_statusStrip";
+            buildLogger_statusStrip.Size = new Size(413, 22);
+            buildLogger_statusStrip.TabIndex = 1;
+            buildLogger_statusStrip.Text = "statusStrip1";
+            // 
+            // buildLogger_textBox_logDisplay
+            // 
+            buildLogger_textBox_logDisplay.Dock = DockStyle.Right;
+            buildLogger_textBox_logDisplay.Location = new Point(79, 32);
+            buildLogger_textBox_logDisplay.Multiline = true;
+            buildLogger_textBox_logDisplay.Name = "buildLogger_textBox_logDisplay";
+            buildLogger_textBox_logDisplay.Size = new Size(334, 313);
+            buildLogger_textBox_logDisplay.TabIndex = 2;
+            // 
+            // buildLogger_menuStrip_menuStripButton_saveAs
+            // 
+            buildLogger_menuStrip_menuStripButton_saveAs.Image = (Image)resources.GetObject("buildLogger_menuStrip_menuStripButton_saveAs.Image");
+            buildLogger_menuStrip_menuStripButton_saveAs.Margin = new Padding(306, 0, -5, 0);
+            buildLogger_menuStrip_menuStripButton_saveAs.Name = "buildLogger_menuStrip_menuStripButton_saveAs";
+            buildLogger_menuStrip_menuStripButton_saveAs.Size = new Size(49, 28);
+            buildLogger_menuStrip_menuStripButton_saveAs.Text = " ";
+            // 
+            // buildLogger_menuStrip_menuStripButton_printLog
+            // 
+            buildLogger_menuStrip_menuStripButton_printLog.Image = (Image)resources.GetObject("buildLogger_menuStrip_menuStripButton_printLog.Image");
+            buildLogger_menuStrip_menuStripButton_printLog.Name = "buildLogger_menuStrip_menuStripButton_printLog";
+            buildLogger_menuStrip_menuStripButton_printLog.Size = new Size(49, 28);
+            buildLogger_menuStrip_menuStripButton_printLog.Text = " ";
+            // 
+            // buildLogger
+            // 
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            BackgroundImage = (Image)resources.GetObject("$this.BackgroundImage");
+            BackgroundImageLayout = ImageLayout.Stretch;
+            ClientSize = new Size(413, 367);
+            Controls.Add(buildLogger_textBox_logDisplay);
+            Controls.Add(buildLogger_statusStrip);
+            Controls.Add(buildLogger_menuStrip);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MainMenuStrip = buildLogger_menuStrip;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Name = "buildLogger";
+            Text = "BuildLogger";
+            buildLogger_menuStrip.ResumeLayout(false);
+            buildLogger_menuStrip.PerformLayout();
+            ResumeLayout(false);
+            PerformLayout();
+        }
+
+        #endregion
+
+        private MenuStrip buildLogger_menuStrip;
+        private StatusStrip buildLogger_statusStrip;
+        private TextBox buildLogger_textBox_logDisplay;
+        private ToolStripMenuItem buildLogger_menuStrip_menuStripButton_saveAs;
+        private ToolStripMenuItem buildLogger_menuStrip_menuStripButton_printLog;
+    }
+}
