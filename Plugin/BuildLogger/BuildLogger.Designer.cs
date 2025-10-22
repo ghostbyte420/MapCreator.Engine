@@ -30,10 +30,10 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(buildLogger));
             buildLogger_menuStrip = new MenuStrip();
-            buildLogger_statusStrip = new StatusStrip();
-            buildLogger_textBox_logDisplay = new TextBox();
             buildLogger_menuStrip_menuStripButton_saveAs = new ToolStripMenuItem();
             buildLogger_menuStrip_menuStripButton_printLog = new ToolStripMenuItem();
+            buildLogger_statusStrip = new StatusStrip();
+            buildLogger_textBox_logDisplay = new TextBox();
             buildLogger_menuStrip.SuspendLayout();
             SuspendLayout();
             // 
@@ -48,6 +48,23 @@
             buildLogger_menuStrip.TabIndex = 0;
             buildLogger_menuStrip.Text = "menuStrip1";
             // 
+            // buildLogger_menuStrip_menuStripButton_saveAs
+            // 
+            buildLogger_menuStrip_menuStripButton_saveAs.Image = (Image)resources.GetObject("buildLogger_menuStrip_menuStripButton_saveAs.Image");
+            buildLogger_menuStrip_menuStripButton_saveAs.Margin = new Padding(306, 0, -5, 0);
+            buildLogger_menuStrip_menuStripButton_saveAs.Name = "buildLogger_menuStrip_menuStripButton_saveAs";
+            buildLogger_menuStrip_menuStripButton_saveAs.Size = new Size(49, 28);
+            buildLogger_menuStrip_menuStripButton_saveAs.Text = " ";
+            buildLogger_menuStrip_menuStripButton_saveAs.Click += buildLogger_menuStrip_menuStripButton_saveAs_Click;
+            // 
+            // buildLogger_menuStrip_menuStripButton_printLog
+            // 
+            buildLogger_menuStrip_menuStripButton_printLog.Image = (Image)resources.GetObject("buildLogger_menuStrip_menuStripButton_printLog.Image");
+            buildLogger_menuStrip_menuStripButton_printLog.Name = "buildLogger_menuStrip_menuStripButton_printLog";
+            buildLogger_menuStrip_menuStripButton_printLog.Size = new Size(49, 28);
+            buildLogger_menuStrip_menuStripButton_printLog.Text = " ";
+            buildLogger_menuStrip_menuStripButton_printLog.Click += buildLogger_menuStrip_menuStripButton_printLog_Click;
+            // 
             // buildLogger_statusStrip
             // 
             buildLogger_statusStrip.Location = new Point(0, 345);
@@ -59,26 +76,11 @@
             // buildLogger_textBox_logDisplay
             // 
             buildLogger_textBox_logDisplay.Dock = DockStyle.Right;
-            buildLogger_textBox_logDisplay.Location = new Point(79, 32);
+            buildLogger_textBox_logDisplay.Location = new Point(112, 32);
             buildLogger_textBox_logDisplay.Multiline = true;
             buildLogger_textBox_logDisplay.Name = "buildLogger_textBox_logDisplay";
-            buildLogger_textBox_logDisplay.Size = new Size(334, 313);
+            buildLogger_textBox_logDisplay.Size = new Size(301, 313);
             buildLogger_textBox_logDisplay.TabIndex = 2;
-            // 
-            // buildLogger_menuStrip_menuStripButton_saveAs
-            // 
-            buildLogger_menuStrip_menuStripButton_saveAs.Image = (Image)resources.GetObject("buildLogger_menuStrip_menuStripButton_saveAs.Image");
-            buildLogger_menuStrip_menuStripButton_saveAs.Margin = new Padding(306, 0, -5, 0);
-            buildLogger_menuStrip_menuStripButton_saveAs.Name = "buildLogger_menuStrip_menuStripButton_saveAs";
-            buildLogger_menuStrip_menuStripButton_saveAs.Size = new Size(49, 28);
-            buildLogger_menuStrip_menuStripButton_saveAs.Text = " ";
-            // 
-            // buildLogger_menuStrip_menuStripButton_printLog
-            // 
-            buildLogger_menuStrip_menuStripButton_printLog.Image = (Image)resources.GetObject("buildLogger_menuStrip_menuStripButton_printLog.Image");
-            buildLogger_menuStrip_menuStripButton_printLog.Name = "buildLogger_menuStrip_menuStripButton_printLog";
-            buildLogger_menuStrip_menuStripButton_printLog.Size = new Size(49, 28);
-            buildLogger_menuStrip_menuStripButton_printLog.Text = " ";
             // 
             // buildLogger
             // 
@@ -91,11 +93,13 @@
             Controls.Add(buildLogger_statusStrip);
             Controls.Add(buildLogger_menuStrip);
             FormBorderStyle = FormBorderStyle.FixedSingle;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MainMenuStrip = buildLogger_menuStrip;
             MaximizeBox = false;
             MinimizeBox = false;
             Name = "buildLogger";
             Text = "BuildLogger";
+            Load += buildLogger_Load;
             buildLogger_menuStrip.ResumeLayout(false);
             buildLogger_menuStrip.PerformLayout();
             ResumeLayout(false);
