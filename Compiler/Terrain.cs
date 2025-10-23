@@ -148,7 +148,11 @@ namespace MapCreator.Engine.Compiler
 
         public ClsTerrain TerrianGroup(int iKey)
         {
-            return TerrainHash[iKey];
+            //return TerrainHash[iKey];
+            //Thanks to Voxpire for pointing out a potential crash with the above line 151
+
+            TerrainHash.TryGetValue(iKey, out var entry);
+            return entry;
         }
 
         public ClsTerrainTable()
