@@ -79,6 +79,7 @@
             buildLogger_textBox_logDisplay.Location = new Point(112, 32);
             buildLogger_textBox_logDisplay.Multiline = true;
             buildLogger_textBox_logDisplay.Name = "buildLogger_textBox_logDisplay";
+            buildLogger_textBox_logDisplay.ScrollBars = ScrollBars.Vertical;
             buildLogger_textBox_logDisplay.Size = new Size(301, 313);
             buildLogger_textBox_logDisplay.TabIndex = 2;
             // 

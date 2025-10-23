@@ -323,7 +323,7 @@ namespace MapCreator.Engine.Compiler
 
             #region Data Directory Modification
 
-            var str = string.Format("{0}/Development/DrawingTools/AdobePhotoshop/ColorSwatches/Terrain.aco", Directory.GetCurrentDirectory());
+            var str = string.Format("{0}/Development/DrawingTools/AdobePhotoshop/ColorTables/ACO/Terrain.aco", Directory.GetCurrentDirectory());
 
             #endregion
 
@@ -368,7 +368,7 @@ namespace MapCreator.Engine.Compiler
         {
             #region Data Directory Modification
 
-            var str = string.Format("{0}/Development/DrawingTools/AdobePhotoshop/OptimizedColors/Terrain.act", Directory.GetCurrentDirectory());
+            var str = string.Format("{0}/Development/DrawingTools/AdobePhotoshop/ColorTables/ACT/Terrain.act", Directory.GetCurrentDirectory());
 
             #endregion
 
