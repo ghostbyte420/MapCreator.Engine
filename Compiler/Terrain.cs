@@ -144,16 +144,16 @@ namespace MapCreator.Engine.Compiler
 
     public class ClsTerrainTable
     {
-        public Hashtable TerrainHash { get; }
+        public Dictionary<int, ClsTerrain> TerrainHash { get; }
 
         public ClsTerrain TerrianGroup(int iKey)
         {
-            return (ClsTerrain)TerrainHash[iKey];
+            return TerrainHash[iKey];
         }
 
         public ClsTerrainTable()
         {
-            TerrainHash = new Hashtable();
+            TerrainHash = new Dictionary<int, ClsTerrain>();
         }
 
         public void Display(ListBox iList)
@@ -165,7 +165,7 @@ namespace MapCreator.Engine.Compiler
                 enumerator = TerrainHash.Values.GetEnumerator();
                 while (enumerator.MoveNext())
                 {
-                    var current = (ClsTerrain)enumerator.Current;
+                    var current = enumerator.Current;
                     _ = iList.Items.Add(current);
                 }
             }
@@ -187,7 +187,7 @@ namespace MapCreator.Engine.Compiler
                 enumerator = TerrainHash.Values.GetEnumerator();
                 while (enumerator.MoveNext())
                 {
-                    var current = (ClsTerrain)enumerator.Current;
+                    var current = enumerator.Current;
                     _ = iCombo.Items.Add(current);
                 }
             }
@@ -336,11 +336,11 @@ namespace MapCreator.Engine.Compiler
             var num1 = 0;
             do
             {
-                if (TerrainHash[num1] != null)
+                if (TerrainHash.TryGetValue(num1, out var tr))
                 {
                     binaryWriter.Write((byte)0);
                     binaryWriter.Write((byte)0);
-                    ((ClsTerrain)TerrainHash[num1]).SaveACO(binaryWriter);
+                    tr.SaveACO(binaryWriter);
                 }
             }
             while (++num1 <= 255);
@@ -351,11 +351,11 @@ namespace MapCreator.Engine.Compiler
             var num2 = 0;
             do
             {
-                if (TerrainHash[num2] != null)
+                if (TerrainHash.TryGetValue(num2, out var tr))
                 {
                     binaryWriter.Write((byte)0);
                     binaryWriter.Write((byte)0);
-                    ((ClsTerrain)TerrainHash[num2]).SaveACOText(binaryWriter);
+                    tr.SaveACOText(binaryWriter);
                 }
             }
             while (++num2 <= 255);
@@ -378,9 +378,9 @@ namespace MapCreator.Engine.Compiler
             var num1 = 0;
             do
             {
-                if (TerrainHash[num1] != null)
+                if (TerrainHash.TryGetValue(num1, out var tr))
                 {
-                    ((ClsTerrain)TerrainHash[num1]).SaveACT(binaryWriter);
+                    tr.SaveACT(binaryWriter);
                 }
                 else
                 {
