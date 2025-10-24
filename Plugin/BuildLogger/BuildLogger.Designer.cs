@@ -44,14 +44,14 @@
             buildLogger_menuStrip.Items.AddRange(new ToolStripItem[] { buildLogger_menuStrip_menuStripButton_saveAs, buildLogger_menuStrip_menuStripButton_printLog });
             buildLogger_menuStrip.Location = new Point(0, 0);
             buildLogger_menuStrip.Name = "buildLogger_menuStrip";
-            buildLogger_menuStrip.Size = new Size(413, 32);
+            buildLogger_menuStrip.Size = new Size(475, 32);
             buildLogger_menuStrip.TabIndex = 0;
             buildLogger_menuStrip.Text = "menuStrip1";
             // 
             // buildLogger_menuStrip_menuStripButton_saveAs
             // 
             buildLogger_menuStrip_menuStripButton_saveAs.Image = (Image)resources.GetObject("buildLogger_menuStrip_menuStripButton_saveAs.Image");
-            buildLogger_menuStrip_menuStripButton_saveAs.Margin = new Padding(306, 0, -5, 0);
+            buildLogger_menuStrip_menuStripButton_saveAs.Margin = new Padding(375, 0, -5, 0);
             buildLogger_menuStrip_menuStripButton_saveAs.Name = "buildLogger_menuStrip_menuStripButton_saveAs";
             buildLogger_menuStrip_menuStripButton_saveAs.Size = new Size(49, 28);
             buildLogger_menuStrip_menuStripButton_saveAs.Text = " ";
@@ -69,18 +69,18 @@
             // 
             buildLogger_statusStrip.Location = new Point(0, 345);
             buildLogger_statusStrip.Name = "buildLogger_statusStrip";
-            buildLogger_statusStrip.Size = new Size(413, 22);
+            buildLogger_statusStrip.Size = new Size(475, 22);
             buildLogger_statusStrip.TabIndex = 1;
             buildLogger_statusStrip.Text = "statusStrip1";
             // 
             // buildLogger_textBox_logDisplay
             // 
             buildLogger_textBox_logDisplay.Dock = DockStyle.Right;
-            buildLogger_textBox_logDisplay.Location = new Point(112, 32);
+            buildLogger_textBox_logDisplay.Location = new Point(121, 32);
             buildLogger_textBox_logDisplay.Multiline = true;
             buildLogger_textBox_logDisplay.Name = "buildLogger_textBox_logDisplay";
             buildLogger_textBox_logDisplay.ScrollBars = ScrollBars.Vertical;
-            buildLogger_textBox_logDisplay.Size = new Size(301, 313);
+            buildLogger_textBox_logDisplay.Size = new Size(354, 313);
             buildLogger_textBox_logDisplay.TabIndex = 2;
             // 
             // buildLogger
@@ -89,7 +89,8 @@
             AutoScaleMode = AutoScaleMode.Font;
             BackgroundImage = (Image)resources.GetObject("$this.BackgroundImage");
             BackgroundImageLayout = ImageLayout.Stretch;
-            ClientSize = new Size(413, 367);
+            ClientSize = new Size(475, 367);
+            ControlBox = false;
             Controls.Add(buildLogger_textBox_logDisplay);
             Controls.Add(buildLogger_statusStrip);
             Controls.Add(buildLogger_menuStrip);
