@@ -5,32 +5,38 @@ using System.Windows.Forms;
 using System.Xml.Linq;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
+using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace MapCreator.Engine.Plugin.FacetDesigner
 {
     public partial class facetDesigner : Form
     {
-        private List<TerrainInfo> terrainList = new();
-        private List<AltitudeInfo> altitudeList = new();
+        private List<TerrainInfo> terrainList = new List<TerrainInfo>();
+        private List<AltitudeInfo> altitudeList = new List<AltitudeInfo>();
         private Color[] currentPalette = null;
         private enum PaletteMode { None, Terrain, Altitude }
         private PaletteMode currentPaletteMode = PaletteMode.None;
-
         private Bitmap currentImage = null;
         private float currentZoom = 1.0f;
         private readonly float minZoom = 0.13f;
         private readonly float maxZoom = 200.0f;
         private Point? highlightedTile = null;
-
         private bool isPanning = false;
         private Point panStartPoint;
         private Point scrollStartPoint;
         private Point pictureBoxStartLocation;
+        private List<Bitmap> undoStack = new List<Bitmap>();
+        private List<Bitmap> redoStack = new List<Bitmap>();
+        private int maxUndoSteps = 20;
+        private Color selectedColor = Color.Black;
+        private int selectedColorIndex = 0;
+        private bool isPainting = false;
+        private Point lastPaintPoint;
 
         public facetDesigner()
         {
             InitializeComponent();
-
             facetDesigner_panel_pictureBox_facetCanvas.BackColor = Color.Silver;
             SetDoubleBuffered(facetDesigner_panel_pictureBox_facetCanvas);
 
@@ -40,19 +46,21 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             facetDesigner_toolStrip_numericUpDown_zoomLevel.DecimalPlaces = 2;
             facetDesigner_toolStrip_numericUpDown_zoomLevel.Increment = 0.1M;
             facetDesigner_toolStrip_numericUpDown_zoomLevel.Value = (decimal)currentZoom;
-            facetDesigner_toolStrip_numericUpDown_zoomLevel.ValueChanged += FacetDesigner_toolStrip_numericUpDown_zoomLevel_ValueChanged;
+            facetDesigner_toolStrip_numericUpDown_zoomLevel.ValueChanged += facetDesigner_toolStrip_numericUpDown_zoomLevel_ValueChanged;
 
             // menu / toolbar wiring
             facetDesigner_menuStrip_menuStripButton_selectColorPalette_loadTerrain.Click += facetDesigner_menuStrip_menuStripButton_selectColorPalette_loadTerrain_Click;
             facetDesigner_menuStrip_menuStripButton_selectColorPalette_loadAltitude.Click += facetDesigner_menuStrip_menuStripButton_selectColorPalette_loadAltitude_Click;
             facetDesigner_menuStrip_menuStripButton_selectFacetBitmap_importTerrainBitmap.Click += facetDesigner_menuStrip_menuStripButton_selectFacetBitmap_importTerrainBitmap_Click;
             facetDesigner_menuStrip_menuStripButton_selectFacetBitmap_importAltitudeBitmap.Click += facetDesigner_menuStrip_menuStripButton_selectFacetBitmap_importAltitudeBitmap_Click;
+            facetDesigner_toolStrip_toolStripButton_undoChanges.Click += facetDesigner_toolStrip_toolStripButton_undoChanges_Click;
+            facetDesigner_menuStrip_menuStripButton_saveFacetBitmap.Click += facetDesigner_menuStrip_menuStripButton_saveFacetBitmap_Click;
 
             // canvas event hookups
             facetDesigner_panel_pictureBox_facetCanvas.Paint += facetDesigner_panel_pictureBox_facetCanvas_Paint;
             facetDesigner_panel_pictureBox_facetCanvas.MouseWheel += FacetCanvas_MouseWheel;
             facetDesigner_panel_pictureBox_facetCanvas.MouseEnter += (s, e) => facetDesigner_panel_pictureBox_facetCanvas.Focus();
-            facetDesigner_panel_pictureBox_facetCanvas.MouseMove += FacetCanvas_MouseDrag;
+            facetDesigner_panel_pictureBox_facetCanvas.MouseMove += FacetCanvas_MouseMove;
             facetDesigner_panel_pictureBox_facetCanvas.MouseLeave += (s, e) =>
             {
                 highlightedTile = null;
@@ -60,7 +68,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             };
             facetDesigner_panel_pictureBox_facetCanvas.MouseDown += FacetCanvas_MouseDown;
             facetDesigner_panel_pictureBox_facetCanvas.MouseUp += FacetCanvas_MouseUp;
-
             facetDesigner_panel_pictureBox_facetCanvas.Dock = DockStyle.None;
             facetDesigner_panel_pictureBox_facetCanvas.SizeMode = PictureBoxSizeMode.Normal;
         }
@@ -73,7 +80,7 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             aProp.SetValue(c, true, null);
         }
 
-        // ---- Zoom Synchronization (prevents double update) ----
+        // ---- Zoom Synchronization ----
         private bool _suppressZoomEvent = false;
         private void SetZoomLevelWithoutEvent(float zoom)
         {
@@ -81,8 +88,7 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             try
             {
                 _suppressZoomEvent = true;
-                facetDesigner_toolStrip_numericUpDown_zoomLevel.Value =
-                    (decimal)zoom;
+                facetDesigner_toolStrip_numericUpDown_zoomLevel.Value = (decimal)zoom;
                 currentZoom = zoom;
                 UpdateCanvasSizeAndInvalidate();
             }
@@ -92,7 +98,7 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             }
         }
 
-        private void FacetDesigner_toolStrip_numericUpDown_zoomLevel_ValueChanged(object sender, EventArgs e)
+        private void facetDesigner_toolStrip_numericUpDown_zoomLevel_ValueChanged(object sender, EventArgs e)
         {
             if (_suppressZoomEvent) return;
             var v = (float)facetDesigner_toolStrip_numericUpDown_zoomLevel.Value;
@@ -100,7 +106,7 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             UpdateCanvasSizeAndInvalidate();
         }
 
-        // ---- Palette Loading (uses FlowLayoutPanel for swatches) ----
+        // ---- Palette Loading ----
         private void facetDesigner_menuStrip_menuStripButton_selectColorPalette_loadTerrain_Click(object sender, EventArgs e)
         {
             string xmlPath = System.IO.Path.Combine(Application.StartupPath, "MapCompiler", "Engine", "Terrain.xml");
@@ -109,21 +115,20 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                 MessageBox.Show($"File not found:\n{xmlPath}", "File Missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-
             terrainList = LoadTerrainFromXML(xmlPath);
-
             FlowLayoutPanel swatchPanel = facetDesigner_panel_swatchColors as FlowLayoutPanel;
             if (swatchPanel != null)
             {
                 swatchPanel.Controls.Clear();
-                foreach (var item in terrainList)
+                for (int i = 0; i < terrainList.Count; i++)
                 {
-                    Button swatch = new()
+                    var item = terrainList[i];
+                    Button swatch = new Button
                     {
                         BackColor = item.Color,
                         Width = 32,
                         Height = 32,
-                        Tag = item.ID,
+                        Tag = i, // Set Tag to the index in the list
                         Margin = new Padding(3)
                     };
                     swatch.Click += TerrainSwatch_Click;
@@ -135,22 +140,21 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             {
                 facetDesigner_panel_swatchColors.Controls.Clear();
                 int x = 10, y = 10, buttonSize = 32, margin = 5;
-                for (int i = terrainList.Count - 1; i >= 0; i--)
+                for (int i = 0; i < terrainList.Count; i++)
                 {
                     var item = terrainList[i];
-                    Button swatch = new()
+                    Button swatch = new Button
                     {
                         BackColor = item.Color,
                         Width = buttonSize,
                         Height = buttonSize,
                         Left = x,
                         Top = y,
-                        Tag = item.ID
+                        Tag = i  // Set Tag to the index in the list
                     };
                     swatch.Click += TerrainSwatch_Click;
                     new ToolTip().SetToolTip(swatch, item.Name);
                     facetDesigner_panel_swatchColors.Controls.Add(swatch);
-
                     x += buttonSize + margin;
                     if (x + buttonSize > facetDesigner_panel_swatchColors.Width)
                     {
@@ -171,21 +175,20 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                 MessageBox.Show($"File not found:\n{xmlPath}", "File Missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-
             altitudeList = LoadAltitudeFromXML(xmlPath);
-
             FlowLayoutPanel swatchPanel = facetDesigner_panel_swatchColors as FlowLayoutPanel;
             if (swatchPanel != null)
             {
                 swatchPanel.Controls.Clear();
-                foreach (var item in altitudeList)
+                for (int i = 0; i < altitudeList.Count; i++)
                 {
-                    Button swatch = new()
+                    var item = altitudeList[i];
+                    Button swatch = new Button
                     {
                         BackColor = item.Color,
                         Width = 32,
                         Height = 32,
-                        Tag = item.Key,
+                        Tag = i, // Set Tag to the index in the list
                         Margin = new Padding(3)
                     };
                     swatch.Click += AltitudeSwatch_Click;
@@ -197,22 +200,21 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             {
                 facetDesigner_panel_swatchColors.Controls.Clear();
                 int x = 10, y = 10, buttonSize = 32, margin = 5;
-                for (int i = altitudeList.Count - 1; i >= 0; i--)
+                for (int i = 0; i < altitudeList.Count; i++)
                 {
                     var item = altitudeList[i];
-                    Button swatch = new()
+                    Button swatch = new Button
                     {
                         BackColor = item.Color,
                         Width = buttonSize,
                         Height = buttonSize,
                         Left = x,
                         Top = y,
-                        Tag = item.Key
+                        Tag = i  // Set Tag to the index in the list
                     };
                     swatch.Click += AltitudeSwatch_Click;
                     new ToolTip().SetToolTip(swatch, $"Key: {item.Key}, Type: {item.Type}, Altitude: {item.Altitude}");
                     facetDesigner_panel_swatchColors.Controls.Add(swatch);
-
                     x += buttonSize + margin;
                     if (x + buttonSize > facetDesigner_panel_swatchColors.Width)
                     {
@@ -227,15 +229,21 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
 
         private Color[] GetTerrainPalette()
         {
-            Color[] palette = new Color[terrainList.Count];
-            for (int i = 0; i < terrainList.Count; i++) palette[i] = terrainList[i].Color;
+            Color[] palette = new Color[256];
+            foreach (var item in terrainList)
+            {
+                palette[item.ID] = item.Color;
+            }
             return palette;
         }
 
         private Color[] GetAltitudePalette()
         {
-            Color[] palette = new Color[altitudeList.Count];
-            for (int i = 0; i < altitudeList.Count; i++) palette[i] = altitudeList[i].Color;
+            Color[] palette = new Color[256];
+            foreach (var item in altitudeList)
+            {
+                palette[item.Key] = item.Color;
+            }
             return palette;
         }
 
@@ -260,15 +268,14 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             ImportIndexedBitmap("Altitude.bmp", currentPalette);
         }
 
-        private void ImportIndexedBitmap(string defaultFilename, Color[] palette)
+        private unsafe void ImportIndexedBitmap(string defaultFilename, Color[] palette)
         {
-            using OpenFileDialog dlg = new()
+            using OpenFileDialog dlg = new OpenFileDialog
             {
                 Title = $"Select {defaultFilename}",
                 Filter = "Bitmap files (*.bmp)|*.bmp",
                 FileName = defaultFilename
             };
-
             if (dlg.ShowDialog() == DialogResult.OK)
             {
                 using var bmp = new Bitmap(dlg.FileName);
@@ -277,61 +284,58 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                     MessageBox.Show("Only 8-bit indexed BMP files are supported.", "Wrong Format", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
-                Bitmap displayBmp = ApplyPaletteToIndexedBitmap(bmp, palette);
-                SetImageAndZoom(displayBmp);
-                GC.Collect(); // Optional: help with memory if loading many large images
-            }
-        }
 
-        private unsafe Bitmap ApplyPaletteToIndexedBitmap(Bitmap bmp, Color[] xmlPalette)
-        {
-            ColorPalette bmpPalette = bmp.Palette;
-            int width = bmp.Width;
-            int height = bmp.Height;
-            Bitmap outBmp = new(width, height, PixelFormat.Format24bppRgb);
-            var srcData = bmp.LockBits(new Rectangle(0, 0, width, height),
-                ImageLockMode.ReadOnly, bmp.PixelFormat);
-            var dstData = outBmp.LockBits(new Rectangle(0, 0, width, height),
-                ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
-
-            // Build a lookup for XML palette colors
-            var xmlColorLookup = new Dictionary<int, Color>();
-            foreach (var c in xmlPalette) xmlColorLookup[c.ToArgb()] = c;
-
-            try
-            {
-                int srcStride = srcData.Stride;
-                int dstStride = dstData.Stride;
-                byte* srcBase = (byte*)srcData.Scan0;
-                byte* dstBase = (byte*)dstData.Scan0;
-
-                for (int y = 0; y < height; y++)
+                Bitmap displayBmp = new Bitmap(bmp.Width, bmp.Height, PixelFormat.Format8bppIndexed);
+                ColorPalette bmpPalette = displayBmp.Palette;
+                for (int i = 0; i < palette.Length && i < bmpPalette.Entries.Length; i++)
                 {
-                    byte* srcPtr = srcBase + y * srcStride;
-                    byte* dstPtr = dstBase + y * dstStride;
-                    for (int x = 0; x < width; x++)
+                    bmpPalette.Entries[i] = palette[i];
+                }
+                displayBmp.Palette = bmpPalette;
+
+                var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+                var srcData = bmp.LockBits(rect, ImageLockMode.ReadOnly, bmp.PixelFormat);
+                var dstData = displayBmp.LockBits(rect, ImageLockMode.WriteOnly, displayBmp.PixelFormat);
+
+                try
+                {
+                    int srcStride = srcData.Stride;
+                    int dstStride = dstData.Stride;
+                    byte* srcPtr = (byte*)srcData.Scan0;
+                    byte* dstPtr = (byte*)dstData.Scan0;
+                    int width = bmp.Width;
+
+                    for (int y = 0; y < bmp.Height; y++)
                     {
-                        byte idx = srcPtr[x];
-                        Color bmpColor = bmpPalette.Entries[idx];
-                        Color xmlColor = xmlColorLookup.TryGetValue(bmpColor.ToArgb(), out var found) ? found : Color.Magenta;
-                        dstPtr[x * 3 + 0] = xmlColor.B;
-                        dstPtr[x * 3 + 1] = xmlColor.G;
-                        dstPtr[x * 3 + 2] = xmlColor.R;
+                        for (int x = 0; x < width; x++)
+                        {
+                            dstPtr[y * dstStride + x] = srcPtr[y * srcStride + x];
+                        }
                     }
                 }
+                finally
+                {
+                    bmp.UnlockBits(srcData);
+                    displayBmp.UnlockBits(dstData);
+                }
+
+                SetImageAndZoom(displayBmp);
             }
-            finally
-            {
-                bmp.UnlockBits(srcData);
-                outBmp.UnlockBits(dstData);
-            }
-            return outBmp;
         }
 
         private void SetImageAndZoom(Bitmap bmp)
         {
             currentImage?.Dispose();
             currentImage = bmp;
+            if (currentPalette != null && currentImage.PixelFormat == PixelFormat.Format8bppIndexed)
+            {
+                ColorPalette palette = currentImage.Palette;
+                for (int i = 0; i < currentPalette.Length && i < palette.Entries.Length; i++)
+                {
+                    palette.Entries[i] = currentPalette[i];
+                }
+                currentImage.Palette = palette;
+            }
             ZoomToFit();
             facetDesigner_panel_facetCanvas.AutoScrollPosition = new Point(0, 0);
         }
@@ -354,18 +358,9 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         {
             if (currentImage != null)
             {
-                // Get center point before zoom (in image coordinates)
-                Point currentLoc = facetDesigner_panel_pictureBox_facetCanvas.Location;
-                Size panelSize = facetDesigner_panel_facetCanvas.ClientSize;
-
-                // Calculate the center of the visible area in image coordinates
-                float centerX = (-currentLoc.X + panelSize.Width / 2f) / (currentImage.Width * currentZoom);
-                float centerY = (-currentLoc.Y + panelSize.Height / 2f) / (currentImage.Height * currentZoom);
-
                 int newWidth = (int)(currentImage.Width * currentZoom);
                 int newHeight = (int)(currentImage.Height * currentZoom);
                 facetDesigner_panel_pictureBox_facetCanvas.Size = new Size(newWidth, newHeight);
-
                 facetDesigner_panel_pictureBox_facetCanvas.Location = new Point(
                     Math.Max(0, (facetDesigner_panel_facetCanvas.ClientSize.Width - newWidth) / 2),
                     Math.Max(0, (facetDesigner_panel_facetCanvas.ClientSize.Height - newHeight) / 2)
@@ -377,7 +372,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         private void FacetCanvas_MouseWheel(object sender, MouseEventArgs e)
         {
             if (currentImage == null || ModifierKeys != Keys.Control) return;
-
             const float zoomStep = 1.10f;
             float newZoom = e.Delta > 0 ? Math.Min(maxZoom, currentZoom * zoomStep) : Math.Max(minZoom, currentZoom / zoomStep);
             SetZoomLevelWithoutEvent(newZoom);
@@ -400,7 +394,13 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
 
         private void FacetCanvas_MouseDown(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Middle || e.Button == MouseButtons.Right)
+            if (e.Button == MouseButtons.Left && currentImage != null)
+            {
+                isPainting = true;
+                lastPaintPoint = e.Location;
+                PaintPixel(e.Location);
+            }
+            else if (e.Button == MouseButtons.Middle || e.Button == MouseButtons.Right)
             {
                 isPanning = true;
                 panStartPoint = e.Location;
@@ -411,10 +411,32 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
 
         private void FacetCanvas_MouseUp(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Middle || e.Button == MouseButtons.Right)
+            if (e.Button == MouseButtons.Left)
+            {
+                isPainting = false;
+                SaveStateForUndo();
+            }
+            else if (e.Button == MouseButtons.Middle || e.Button == MouseButtons.Right)
             {
                 isPanning = false;
                 facetDesigner_panel_pictureBox_facetCanvas.Cursor = Cursors.Default;
+            }
+        }
+
+        private void FacetCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isPainting && currentImage != null)
+            {
+                PaintLine(lastPaintPoint, e.Location);
+                lastPaintPoint = e.Location;
+            }
+            else if (isPanning)
+            {
+                FacetCanvas_MouseDrag(sender, e);
+            }
+            else
+            {
+                facetDesigner_panel_pictureBox_facetCanvas_MouseMove(sender, e);
             }
         }
 
@@ -422,29 +444,20 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         {
             if (isPanning)
             {
-                // Calculate movement delta
                 int dx = e.X - panStartPoint.X;
                 int dy = e.Y - panStartPoint.Y;
-
-                // Calculate new position
                 int newX = pictureBoxStartLocation.X + dx;
                 int newY = pictureBoxStartLocation.Y + dy;
-
-                // Apply clamping to keep image visible
                 if (currentImage != null)
                 {
                     int scaledWidth = (int)(currentImage.Width * currentZoom);
                     int scaledHeight = (int)(currentImage.Height * currentZoom);
                     int panelWidth = facetDesigner_panel_facetCanvas.ClientSize.Width;
                     int panelHeight = facetDesigner_panel_facetCanvas.ClientSize.Height;
-
-                    // Clamp so at least part of the image is always visible
                     int minX = panelWidth - scaledWidth;
                     int maxX = 0;
                     int minY = panelHeight - scaledHeight;
                     int maxY = 0;
-
-                    // If image is smaller than panel, allow centering
                     if (scaledWidth < panelWidth)
                     {
                         minX = 0;
@@ -455,16 +468,13 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                         minY = 0;
                         maxY = panelHeight - scaledHeight;
                     }
-
                     newX = Math.Max(minX, Math.Min(maxX, newX));
                     newY = Math.Max(minY, Math.Min(maxY, newY));
                 }
-
                 facetDesigner_panel_pictureBox_facetCanvas.Location = new Point(newX, newY);
             }
             else
             {
-                // Update tile highlighting
                 facetDesigner_panel_pictureBox_facetCanvas_MouseMove(sender, e);
             }
         }
@@ -472,12 +482,9 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         private void facetDesigner_panel_pictureBox_facetCanvas_MouseMove(object sender, MouseEventArgs e)
         {
             if (currentImage == null) { highlightedTile = null; return; }
-            int px = (int)Math.Floor(e.X / currentZoom);
-            int py = (int)Math.Floor(e.Y / currentZoom);
-
-            // Show coordinates in the form title
+            int px = (int)Math.Floor((e.X - facetDesigner_panel_pictureBox_facetCanvas.Left) / currentZoom);
+            int py = (int)Math.Floor((e.Y - facetDesigner_panel_pictureBox_facetCanvas.Top) / currentZoom);
             this.Text = $"FacetDesigner - ({px}, {py})";
-
             if (px >= 0 && px < currentImage.Width && py >= 0 && py < currentImage.Height)
             {
                 if (highlightedTile == null || highlightedTile.Value.X != px || highlightedTile.Value.Y != py)
@@ -500,8 +507,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             float scale = currentZoom;
             int imgW = currentImage.Width;
             int imgH = currentImage.Height;
-
-            // Calculate the visible source rectangle (viewport)
             Rectangle destRect = e.ClipRectangle;
             int srcX = (int)(destRect.X / scale);
             int srcY = (int)(destRect.Y / scale);
@@ -512,23 +517,16 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             if (srcX + srcW > imgW) srcW = imgW - srcX;
             if (srcY + srcH > imgH) srcH = imgH - srcY;
             if (srcW <= 0 || srcH <= 0) return;
-
-            // Fill background
             e.Graphics.Clear(facetDesigner_panel_pictureBox_facetCanvas.BackColor);
-
-            // Draw only the visible portion
             e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
             e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
             e.Graphics.SmoothingMode = SmoothingMode.None;
-
             e.Graphics.DrawImage(
                 currentImage,
-                destRect,                             // destination rect (on screen)
-                new Rectangle(srcX, srcY, srcW, srcH), // source rect (from image)
+                destRect,
+                new Rectangle(srcX, srcY, srcW, srcH),
                 GraphicsUnit.Pixel
             );
-
-            // Draw highlight (overlay)
             if (highlightedTile != null)
             {
                 var (tx, ty) = (highlightedTile.Value.X, highlightedTile.Value.Y);
@@ -590,38 +588,239 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
 
         private void TerrainSwatch_Click(object sender, EventArgs e)
         {
-            if (sender is Button btn)
-                MessageBox.Show("Selected terrain color index: " + btn.Tag);
+            if (sender is Button btn && btn.Tag is int index)
+            {
+                if (index >= 0 && index < terrainList.Count)
+                {
+                    selectedColor = terrainList[index].Color;
+                    selectedColorIndex = terrainList[index].ID;
+                    MessageBox.Show($"Selected terrain color index: {selectedColorIndex}");
+                }
+                else
+                {
+                    MessageBox.Show($"Invalid index: {index}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
 
         private void AltitudeSwatch_Click(object sender, EventArgs e)
         {
-            if (sender is Button btn)
-                MessageBox.Show("Selected altitude key: " + btn.Tag);
+            if (sender is Button btn && btn.Tag is int index)
+            {
+                if (index >= 0 && index < altitudeList.Count)
+                {
+                    var altitude = altitudeList[index];
+                    selectedColor = altitude.Color;
+                    selectedColorIndex = altitude.Key;
+                    MessageBox.Show($"Selected altitude key: {selectedColorIndex}");
+                }
+                else
+                {
+                    MessageBox.Show($"Invalid index: {index}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
 
         private void facetDesigner_menuStrip_menuStripButton_saveFacetBitmap_Click(object sender, EventArgs e)
         {
+            if (currentImage == null)
+            {
+                MessageBox.Show("No image to save.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            using var dlg = new SaveFileDialog
+            {
+                Title = "Save Facet Bitmap",
+                Filter = "Bitmap files (*.bmp)|*.bmp",
+                FileName = "FacetOutput.bmp"
+            };
+            if (dlg.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    using Bitmap saveBmp = new Bitmap(currentImage.Width, currentImage.Height, PixelFormat.Format8bppIndexed);
+                    ColorPalette palette = saveBmp.Palette;
+                    for (int i = 0; i < currentPalette.Length && i < palette.Entries.Length; i++)
+                    {
+                        palette.Entries[i] = currentPalette[i];
+                    }
+                    saveBmp.Palette = palette;
 
+                    var rect = new Rectangle(0, 0, currentImage.Width, currentImage.Height);
+                    var srcData = currentImage.LockBits(rect, ImageLockMode.ReadOnly, currentImage.PixelFormat);
+                    var dstData = saveBmp.LockBits(rect, ImageLockMode.WriteOnly, saveBmp.PixelFormat);
+
+                    unsafe
+                    {
+                        try
+                        {
+                            int srcStride = srcData.Stride;
+                            int dstStride = dstData.Stride;
+                            byte* srcPtr = (byte*)srcData.Scan0;
+                            byte* dstPtr = (byte*)dstData.Scan0;
+                            int width = currentImage.Width;
+
+                            for (int y = 0; y < currentImage.Height; y++)
+                            {
+                                for (int x = 0; x < width; x++)
+                                {
+                                    dstPtr[y * dstStride + x] = srcPtr[y * srcStride + x];
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            currentImage.UnlockBits(srcData);
+                            saveBmp.UnlockBits(dstData);
+                        }
+                    }
+
+                    saveBmp.Save(dlg.FileName, ImageFormat.Bmp);
+                    MessageBox.Show("Image saved successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error saving image: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
-    }
 
-    // ---- Data Classes ----
-    public class TerrainInfo
-    {
-        public string Name;
-        public int ID;
-        public int TileID;
-        public Color Color;
-        public int Base;
-        public bool Random;
-    }
+        // ---- Painting Logic ----
+        private unsafe void PaintPixel(Point point)
+        {
+            if (currentImage == null || currentPalette == null)
+                return;
 
-    public class AltitudeInfo
-    {
-        public int Key;
-        public string Type;
-        public int Altitude;
-        public Color Color;
+            int px = (int)Math.Floor((point.X - facetDesigner_panel_pictureBox_facetCanvas.Left) / currentZoom);
+            int py = (int)Math.Floor((point.Y - facetDesigner_panel_pictureBox_facetCanvas.Top) / currentZoom);
+
+            if (px >= 0 && px < currentImage.Width && py >= 0 && py < currentImage.Height)
+            {
+                var rect = new Rectangle(0, 0, currentImage.Width, currentImage.Height);
+                var bmpData = currentImage.LockBits(rect, ImageLockMode.ReadWrite, currentImage.PixelFormat);
+                try
+                {
+                    byte* ptr = (byte*)bmpData.Scan0;
+                    int stride = bmpData.Stride;
+                    ptr += py * stride + px;
+                    *ptr = (byte)selectedColorIndex;
+                }
+                finally
+                {
+                    currentImage.UnlockBits(bmpData);
+                }
+                facetDesigner_panel_pictureBox_facetCanvas.Invalidate(
+                    new Rectangle(
+                        (int)(px * currentZoom),
+                        (int)(py * currentZoom),
+                        (int)Math.Ceiling(currentZoom),
+                        (int)Math.Ceiling(currentZoom)
+                    )
+                );
+            }
+        }
+
+        private void PaintLine(Point start, Point end)
+        {
+            int dx = Math.Abs(end.X - start.X);
+            int dy = Math.Abs(end.Y - start.Y);
+            int sx = start.X < end.X ? 1 : -1;
+            int sy = start.Y < end.Y ? 1 : -1;
+            int err = dx - dy;
+
+            Point current = start;
+            while (true)
+            {
+                PaintPixel(current);
+                if (current == end) break;
+
+                int e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; current.X += sx; }
+                if (e2 < dx) { err += dx; current.Y += sy; }
+            }
+        }
+
+        // ---- Undo/Redo ----
+        private void SaveStateForUndo()
+        {
+            if (currentImage == null)
+                return;
+
+            var clone = (Bitmap)currentImage.Clone();
+            undoStack.Add(clone);
+
+            if (undoStack.Count > maxUndoSteps)
+            {
+                var oldest = undoStack[0];
+                oldest.Dispose();
+                undoStack.RemoveAt(0);
+            }
+
+            foreach (var redoImage in redoStack)
+            {
+                redoImage.Dispose();
+            }
+            redoStack.Clear();
+        }
+
+        private void Undo()
+        {
+            if (undoStack.Count == 0)
+                return;
+
+            if (currentImage != null)
+            {
+                var clone = (Bitmap)currentImage.Clone();
+                redoStack.Add(clone);
+            }
+
+            var previous = undoStack[undoStack.Count - 1];
+            undoStack.RemoveAt(undoStack.Count - 1);
+            currentImage?.Dispose();
+            currentImage = previous;
+            facetDesigner_panel_pictureBox_facetCanvas.Invalidate();
+        }
+
+        private void Redo()
+        {
+            if (redoStack.Count == 0)
+                return;
+
+            if (currentImage != null)
+            {
+                var clone = (Bitmap)currentImage.Clone();
+                undoStack.Add(clone);
+            }
+
+            var next = redoStack[redoStack.Count - 1];
+            redoStack.RemoveAt(redoStack.Count - 1);
+            currentImage?.Dispose();
+            currentImage = next;
+            facetDesigner_panel_pictureBox_facetCanvas.Invalidate();
+        }
+
+        private void facetDesigner_toolStrip_toolStripButton_undoChanges_Click(object sender, EventArgs e)
+        {
+            Undo();
+        }
+
+        // ---- Data Classes ----
+        public class TerrainInfo
+        {
+            public string Name;
+            public int ID;
+            public int TileID;
+            public Color Color;
+            public int Base;
+            public bool Random;
+        }
+
+        public class AltitudeInfo
+        {
+            public int Key;
+            public string Type;
+            public int Altitude;
+            public Color Color;
+        }
     }
 }

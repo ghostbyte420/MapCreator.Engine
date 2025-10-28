@@ -144,6 +144,7 @@
             facetDesigner_toolStrip_toolStripButton_undoChanges.Name = "facetDesigner_toolStrip_toolStripButton_undoChanges";
             facetDesigner_toolStrip_toolStripButton_undoChanges.Size = new Size(28, 28);
             facetDesigner_toolStrip_toolStripButton_undoChanges.Text = "toolStripButton1";
+            facetDesigner_toolStrip_toolStripButton_undoChanges.Click += facetDesigner_toolStrip_toolStripButton_undoChanges_Click;
             // 
             // facetDesigner_panel_pictureBox_facetCanvas
             // 
