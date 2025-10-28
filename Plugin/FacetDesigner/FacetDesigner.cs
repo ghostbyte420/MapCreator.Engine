@@ -7,6 +7,7 @@ using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.IO;
 
 namespace MapCreator.Engine.Plugin.FacetDesigner
 {
@@ -33,12 +34,16 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         private int selectedColorIndex = 0;
         private bool isPainting = false;
         private Point lastPaintPoint;
+        private List<SwatchItem> swatchItems = new List<SwatchItem>();
+        private string customNamesFilePath;
 
         public facetDesigner()
         {
             InitializeComponent();
             facetDesigner_panel_pictureBox_facetCanvas.BackColor = Color.Silver;
             SetDoubleBuffered(facetDesigner_panel_pictureBox_facetCanvas);
+            customNamesFilePath = Path.Combine(Application.StartupPath, "MapCompiler", "Engine", "customSwatchNames.xml");
+            Directory.CreateDirectory(Path.GetDirectoryName(customNamesFilePath));
 
             // numeric zoom settings
             facetDesigner_toolStrip_numericUpDown_zoomLevel.Minimum = (decimal)minZoom;
@@ -70,6 +75,10 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             facetDesigner_panel_pictureBox_facetCanvas.MouseUp += FacetCanvas_MouseUp;
             facetDesigner_panel_pictureBox_facetCanvas.Dock = DockStyle.None;
             facetDesigner_panel_pictureBox_facetCanvas.SizeMode = PictureBoxSizeMode.Normal;
+
+            // Swatch panel setup
+            facetDesigner_panel_swatchColors.AutoScroll = true;
+            facetDesigner_panel_swatchColors.Width = 220;
         }
 
         public static void SetDoubleBuffered(Control c)
@@ -109,120 +118,28 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         // ---- Palette Loading ----
         private void facetDesigner_menuStrip_menuStripButton_selectColorPalette_loadTerrain_Click(object sender, EventArgs e)
         {
-            string xmlPath = System.IO.Path.Combine(Application.StartupPath, "MapCompiler", "Engine", "Terrain.xml");
-            if (!System.IO.File.Exists(xmlPath))
+            string xmlPath = Path.Combine(Application.StartupPath, "MapCompiler", "Engine", "Terrain.xml");
+            if (!File.Exists(xmlPath))
             {
                 MessageBox.Show($"File not found:\n{xmlPath}", "File Missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             terrainList = LoadTerrainFromXML(xmlPath);
-            FlowLayoutPanel swatchPanel = facetDesigner_panel_swatchColors as FlowLayoutPanel;
-            if (swatchPanel != null)
-            {
-                swatchPanel.Controls.Clear();
-                for (int i = 0; i < terrainList.Count; i++)
-                {
-                    var item = terrainList[i];
-                    Button swatch = new Button
-                    {
-                        BackColor = item.Color,
-                        Width = 32,
-                        Height = 32,
-                        Tag = i, // Set Tag to the index in the list
-                        Margin = new Padding(3)
-                    };
-                    swatch.Click += TerrainSwatch_Click;
-                    new ToolTip().SetToolTip(swatch, item.Name);
-                    swatchPanel.Controls.Add(swatch);
-                }
-            }
-            else
-            {
-                facetDesigner_panel_swatchColors.Controls.Clear();
-                int x = 10, y = 10, buttonSize = 32, margin = 5;
-                for (int i = 0; i < terrainList.Count; i++)
-                {
-                    var item = terrainList[i];
-                    Button swatch = new Button
-                    {
-                        BackColor = item.Color,
-                        Width = buttonSize,
-                        Height = buttonSize,
-                        Left = x,
-                        Top = y,
-                        Tag = i  // Set Tag to the index in the list
-                    };
-                    swatch.Click += TerrainSwatch_Click;
-                    new ToolTip().SetToolTip(swatch, item.Name);
-                    facetDesigner_panel_swatchColors.Controls.Add(swatch);
-                    x += buttonSize + margin;
-                    if (x + buttonSize > facetDesigner_panel_swatchColors.Width)
-                    {
-                        x = 10;
-                        y += buttonSize + margin;
-                    }
-                }
-            }
+            LoadSwatches(terrainList);
             currentPalette = GetTerrainPalette();
             currentPaletteMode = PaletteMode.Terrain;
         }
 
         private void facetDesigner_menuStrip_menuStripButton_selectColorPalette_loadAltitude_Click(object sender, EventArgs e)
         {
-            string xmlPath = System.IO.Path.Combine(Application.StartupPath, "MapCompiler", "Engine", "Altitude.xml");
-            if (!System.IO.File.Exists(xmlPath))
+            string xmlPath = Path.Combine(Application.StartupPath, "MapCompiler", "Engine", "Altitude.xml");
+            if (!File.Exists(xmlPath))
             {
                 MessageBox.Show($"File not found:\n{xmlPath}", "File Missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             altitudeList = LoadAltitudeFromXML(xmlPath);
-            FlowLayoutPanel swatchPanel = facetDesigner_panel_swatchColors as FlowLayoutPanel;
-            if (swatchPanel != null)
-            {
-                swatchPanel.Controls.Clear();
-                for (int i = 0; i < altitudeList.Count; i++)
-                {
-                    var item = altitudeList[i];
-                    Button swatch = new Button
-                    {
-                        BackColor = item.Color,
-                        Width = 32,
-                        Height = 32,
-                        Tag = i, // Set Tag to the index in the list
-                        Margin = new Padding(3)
-                    };
-                    swatch.Click += AltitudeSwatch_Click;
-                    new ToolTip().SetToolTip(swatch, $"Key: {item.Key}, Type: {item.Type}, Altitude: {item.Altitude}");
-                    swatchPanel.Controls.Add(swatch);
-                }
-            }
-            else
-            {
-                facetDesigner_panel_swatchColors.Controls.Clear();
-                int x = 10, y = 10, buttonSize = 32, margin = 5;
-                for (int i = 0; i < altitudeList.Count; i++)
-                {
-                    var item = altitudeList[i];
-                    Button swatch = new Button
-                    {
-                        BackColor = item.Color,
-                        Width = buttonSize,
-                        Height = buttonSize,
-                        Left = x,
-                        Top = y,
-                        Tag = i  // Set Tag to the index in the list
-                    };
-                    swatch.Click += AltitudeSwatch_Click;
-                    new ToolTip().SetToolTip(swatch, $"Key: {item.Key}, Type: {item.Type}, Altitude: {item.Altitude}");
-                    facetDesigner_panel_swatchColors.Controls.Add(swatch);
-                    x += buttonSize + margin;
-                    if (x + buttonSize > facetDesigner_panel_swatchColors.Width)
-                    {
-                        x = 10;
-                        y += buttonSize + margin;
-                    }
-                }
-            }
+            LoadSwatches(altitudeList);
             currentPalette = GetAltitudePalette();
             currentPaletteMode = PaletteMode.Altitude;
         }
@@ -245,6 +162,126 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                 palette[item.Key] = item.Color;
             }
             return palette;
+        }
+
+        // ---- Swatch Loading ----
+        private void LoadSwatches(List<TerrainInfo> terrainList)
+        {
+            swatchItems.Clear();
+            facetDesigner_panel_swatchColors.Controls.Clear();
+            swatchItems = terrainList.Select((_, i) => new SwatchItem { Index = i, CustomName = "" }).ToList();
+            LoadCustomSwatchNames();
+            int yPos = 10;
+            foreach (var item in terrainList)
+            {
+                int index = terrainList.IndexOf(item);
+                var swatchItem = swatchItems[index];
+                var colorButton = new Button
+                {
+                    BackColor = item.Color,
+                    Width = 32,
+                    Height = 32,
+                    Left = 10,
+                    Top = yPos,
+                    Tag = index
+                };
+                colorButton.Click += TerrainSwatch_Click;
+                string displayName = string.IsNullOrEmpty(swatchItem.CustomName) ? item.Name : swatchItem.CustomName;
+                var nameLabel = new TextBox
+                {
+                    Text = displayName,
+                    Width = 150,
+                    Left = 50,
+                    Top = yPos + 4,
+                    Tag = index,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+                nameLabel.TextChanged += (s, e) =>
+                {
+                    swatchItem.CustomName = nameLabel.Text;
+                    SaveCustomSwatchNames();
+                };
+                facetDesigner_panel_swatchColors.Controls.Add(colorButton);
+                facetDesigner_panel_swatchColors.Controls.Add(nameLabel);
+                yPos += 40;
+            }
+        }
+
+        private void LoadSwatches(List<AltitudeInfo> altitudeList)
+        {
+            swatchItems.Clear();
+            facetDesigner_panel_swatchColors.Controls.Clear();
+            swatchItems = altitudeList.Select((_, i) => new SwatchItem { Index = i, CustomName = "" }).ToList();
+            LoadCustomSwatchNames();
+            int yPos = 10;
+            foreach (var item in altitudeList)
+            {
+                int index = altitudeList.IndexOf(item);
+                var swatchItem = swatchItems[index];
+                var colorButton = new Button
+                {
+                    BackColor = item.Color,
+                    Width = 32,
+                    Height = 32,
+                    Left = 10,
+                    Top = yPos,
+                    Tag = index
+                };
+                colorButton.Click += AltitudeSwatch_Click;
+                string displayName = string.IsNullOrEmpty(swatchItem.CustomName)
+                    ? $"Key: {item.Key}, Type: {item.Type}, Altitude: {item.Altitude}"
+                    : swatchItem.CustomName;
+                var nameLabel = new TextBox
+                {
+                    Text = displayName,
+                    Width = 150,
+                    Left = 50,
+                    Top = yPos + 4,
+                    Tag = index,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+                nameLabel.TextChanged += (s, e) =>
+                {
+                    swatchItem.CustomName = nameLabel.Text;
+                    SaveCustomSwatchNames();
+                };
+                facetDesigner_panel_swatchColors.Controls.Add(colorButton);
+                facetDesigner_panel_swatchColors.Controls.Add(nameLabel);
+                yPos += 40;
+            }
+        }
+
+        // ---- Custom Names Persistence ----
+        private void SaveCustomSwatchNames()
+        {
+            var doc = new XDocument(
+                new XElement("CustomNames",
+                    swatchItems
+                        .Where(item => !string.IsNullOrEmpty(item.CustomName))
+                        .Select(item => new XElement("Swatch",
+                            new XAttribute("Index", item.Index),
+                            new XAttribute("CustomName", item.CustomName)
+                        ))
+                )
+            );
+            doc.Save(customNamesFilePath);
+        }
+
+        private void LoadCustomSwatchNames()
+        {
+            if (File.Exists(customNamesFilePath))
+            {
+                var doc = XDocument.Load(customNamesFilePath);
+                foreach (var elem in doc.Descendants("Swatch"))
+                {
+                    int index = int.Parse(elem.Attribute("Index")?.Value ?? "-1");
+                    string customName = elem.Attribute("CustomName")?.Value;
+                    if (index >= 0 && index < swatchItems.Count)
+                    {
+                        swatchItems[index].CustomName = customName;
+                    }
+                }
+            }
         }
 
         // ---- Bitmap Import ----
@@ -284,7 +321,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                     MessageBox.Show("Only 8-bit indexed BMP files are supported.", "Wrong Format", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
-
                 Bitmap displayBmp = new Bitmap(bmp.Width, bmp.Height, PixelFormat.Format8bppIndexed);
                 ColorPalette bmpPalette = displayBmp.Palette;
                 for (int i = 0; i < palette.Length && i < bmpPalette.Entries.Length; i++)
@@ -292,11 +328,9 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                     bmpPalette.Entries[i] = palette[i];
                 }
                 displayBmp.Palette = bmpPalette;
-
                 var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
                 var srcData = bmp.LockBits(rect, ImageLockMode.ReadOnly, bmp.PixelFormat);
                 var dstData = displayBmp.LockBits(rect, ImageLockMode.WriteOnly, displayBmp.PixelFormat);
-
                 try
                 {
                     int srcStride = srcData.Stride;
@@ -304,7 +338,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                     byte* srcPtr = (byte*)srcData.Scan0;
                     byte* dstPtr = (byte*)dstData.Scan0;
                     int width = bmp.Width;
-
                     for (int y = 0; y < bmp.Height; y++)
                     {
                         for (int x = 0; x < width; x++)
@@ -318,7 +351,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                     bmp.UnlockBits(srcData);
                     displayBmp.UnlockBits(dstData);
                 }
-
                 SetImageAndZoom(displayBmp);
             }
         }
@@ -645,11 +677,9 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                         palette.Entries[i] = currentPalette[i];
                     }
                     saveBmp.Palette = palette;
-
                     var rect = new Rectangle(0, 0, currentImage.Width, currentImage.Height);
                     var srcData = currentImage.LockBits(rect, ImageLockMode.ReadOnly, currentImage.PixelFormat);
                     var dstData = saveBmp.LockBits(rect, ImageLockMode.WriteOnly, saveBmp.PixelFormat);
-
                     unsafe
                     {
                         try
@@ -659,7 +689,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                             byte* srcPtr = (byte*)srcData.Scan0;
                             byte* dstPtr = (byte*)dstData.Scan0;
                             int width = currentImage.Width;
-
                             for (int y = 0; y < currentImage.Height; y++)
                             {
                                 for (int x = 0; x < width; x++)
@@ -674,7 +703,6 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
                             saveBmp.UnlockBits(dstData);
                         }
                     }
-
                     saveBmp.Save(dlg.FileName, ImageFormat.Bmp);
                     MessageBox.Show("Image saved successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
@@ -690,10 +718,8 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         {
             if (currentImage == null || currentPalette == null)
                 return;
-
             int px = (int)Math.Floor((point.X - facetDesigner_panel_pictureBox_facetCanvas.Left) / currentZoom);
             int py = (int)Math.Floor((point.Y - facetDesigner_panel_pictureBox_facetCanvas.Top) / currentZoom);
-
             if (px >= 0 && px < currentImage.Width && py >= 0 && py < currentImage.Height)
             {
                 var rect = new Rectangle(0, 0, currentImage.Width, currentImage.Height);
@@ -727,13 +753,11 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             int sx = start.X < end.X ? 1 : -1;
             int sy = start.Y < end.Y ? 1 : -1;
             int err = dx - dy;
-
             Point current = start;
             while (true)
             {
                 PaintPixel(current);
                 if (current == end) break;
-
                 int e2 = 2 * err;
                 if (e2 > -dy) { err -= dy; current.X += sx; }
                 if (e2 < dx) { err += dx; current.Y += sy; }
@@ -745,17 +769,14 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         {
             if (currentImage == null)
                 return;
-
             var clone = (Bitmap)currentImage.Clone();
             undoStack.Add(clone);
-
             if (undoStack.Count > maxUndoSteps)
             {
                 var oldest = undoStack[0];
                 oldest.Dispose();
                 undoStack.RemoveAt(0);
             }
-
             foreach (var redoImage in redoStack)
             {
                 redoImage.Dispose();
@@ -767,13 +788,11 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         {
             if (undoStack.Count == 0)
                 return;
-
             if (currentImage != null)
             {
                 var clone = (Bitmap)currentImage.Clone();
                 redoStack.Add(clone);
             }
-
             var previous = undoStack[undoStack.Count - 1];
             undoStack.RemoveAt(undoStack.Count - 1);
             currentImage?.Dispose();
@@ -785,13 +804,11 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
         {
             if (redoStack.Count == 0)
                 return;
-
             if (currentImage != null)
             {
                 var clone = (Bitmap)currentImage.Clone();
                 undoStack.Add(clone);
             }
-
             var next = redoStack[redoStack.Count - 1];
             redoStack.RemoveAt(redoStack.Count - 1);
             currentImage?.Dispose();
@@ -821,6 +838,12 @@ namespace MapCreator.Engine.Plugin.FacetDesigner
             public string Type;
             public int Altitude;
             public Color Color;
+        }
+
+        public class SwatchItem
+        {
+            public int Index { get; set; }
+            public string CustomName { get; set; }
         }
     }
 }
