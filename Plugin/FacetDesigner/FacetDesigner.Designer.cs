@@ -42,6 +42,7 @@
             facetDesigner_menuStrip_menuStripButton_saveFacetBitmap = new ToolStripMenuItem();
             facetDesigner_toolStrip = new ToolStrip();
             facetDesigner_toolStrip_toolStripButton_undoChanges = new ToolStripButton();
+            toolStripSeparator2 = new ToolStripSeparator();
             facetDesigner_panel_pictureBox_facetCanvas = new PictureBox();
             facetDesigner_panel_swatchColors = new Panel();
             facetDesigner_panel_facetCanvas = new Panel();
@@ -129,7 +130,7 @@
             // facetDesigner_toolStrip
             // 
             facetDesigner_toolStrip.ImageScalingSize = new Size(24, 24);
-            facetDesigner_toolStrip.Items.AddRange(new ToolStripItem[] { facetDesigner_toolStrip_toolStripButton_undoChanges });
+            facetDesigner_toolStrip.Items.AddRange(new ToolStripItem[] { facetDesigner_toolStrip_toolStripButton_undoChanges, toolStripSeparator2 });
             facetDesigner_toolStrip.Location = new Point(0, 28);
             facetDesigner_toolStrip.Name = "facetDesigner_toolStrip";
             facetDesigner_toolStrip.Size = new Size(1199, 31);
@@ -146,6 +147,11 @@
             facetDesigner_toolStrip_toolStripButton_undoChanges.Text = "toolStripButton1";
             facetDesigner_toolStrip_toolStripButton_undoChanges.Click += facetDesigner_toolStrip_toolStripButton_undoChanges_Click;
             // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(6, 31);
+            // 
             // facetDesigner_panel_pictureBox_facetCanvas
             // 
             facetDesigner_panel_pictureBox_facetCanvas.BackColor = Color.Silver;
@@ -161,7 +167,7 @@
             facetDesigner_panel_swatchColors.AutoScroll = true;
             facetDesigner_panel_swatchColors.Location = new Point(963, 119);
             facetDesigner_panel_swatchColors.Name = "facetDesigner_panel_swatchColors";
-            facetDesigner_panel_swatchColors.Size = new Size(224, 440);
+            facetDesigner_panel_swatchColors.Size = new Size(224, 608);
             facetDesigner_panel_swatchColors.TabIndex = 3;
             // 
             // facetDesigner_panel_facetCanvas
@@ -195,6 +201,7 @@
             Controls.Add(facetDesigner_panel_swatchColors);
             Controls.Add(facetDesigner_toolStrip);
             Controls.Add(facetDesigner_menuStrip);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MainMenuStrip = facetDesigner_menuStrip;
             Name = "facetDesigner";
             Text = "FacetDesigner";
@@ -228,5 +235,6 @@
         private ToolStripMenuItem facetDesigner_menuStrip_menuStripButton_saveFacetBitmap;
         private ToolStripButton facetDesigner_toolStrip_toolStripButton_undoChanges;
         private ToolTip toolTip1;
+        private ToolStripSeparator toolStripSeparator2;
     }
 }
