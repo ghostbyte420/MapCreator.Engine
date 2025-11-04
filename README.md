@@ -11,7 +11,6 @@
 
 <br/>
 
-
 ### Features
 ---
 🛠️ 🎨 **Configure Color Tables**<br/><br/>
@@ -36,7 +35,7 @@
 ✔️ this creates 3 files that most Ultima Online™ game clients can load up: **Map0.mul**, **Staidx0.mul**, and **Statics0.mul**<br/><br/>
 <img width="626" height="10" alt="Untitled-2" src="https://github.com/user-attachments/assets/f433a9f7-3927-4ef8-b227-c895be4330a0" /><br/>
 🛠️ 🧩 **User-Submitted Utilities**<br/><br/> 
-✔️ there is a section where users can host utilities that will assist with custom facet creation<br/><br/> 
+✔️ there is a section where users can host utilities that will assist with custom facet creation<br/>
 
 <br/>
 
@@ -48,7 +47,7 @@
 *Game Engine*<br/>
 [uoAvox](https://uoavox.studio)<br/><br/>
 *Custom Client*<br/>
-[ClassicUO](https://www.classicuo.eu/)<br/><br/>
+[ClassicUO](https://www.classicuo.eu/)<br/>
 
 <br/>
 
