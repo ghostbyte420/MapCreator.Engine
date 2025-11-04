@@ -7,7 +7,7 @@
 
 ### Overview
 
-> MapCreator is a Windows Forms-based tool designed for [Ultima Online](http://uo.com)™ custom facet generation. Whether you're an Ultima Online™ server developer or hobbyist, MapCreator simplifies the process of designing and compiling custom maps for your game server...
+> MapCreator is a Windows Forms-based tool designed for [Ultima Online](http://uo.com)™ custom facet generation. Whether you're an Ultima Online™ server developer or hobbyist, MapCreator simplifies the process of designing and compiling custom maps for your game server!
 
 <br/>
 
